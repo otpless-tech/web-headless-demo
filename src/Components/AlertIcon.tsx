@@ -1,5 +1,6 @@
+import React from 'react';
 
-export const AlertIcon = () => (
+export const AlertIcon: React.FC = () => (
     <svg
         className="icon"
         viewBox="0 0 24 24"

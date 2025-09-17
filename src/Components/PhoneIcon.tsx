@@ -1,4 +1,6 @@
-export const PhoneIcon = () => (
+import React from 'react';
+
+export const PhoneIcon: React.FC = () => (
     <svg
         className="icon"
         viewBox="0 0 24 24"

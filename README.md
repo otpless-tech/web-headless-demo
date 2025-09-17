@@ -1,6 +1,11 @@
 # OTPless Headless SDK Integration Demo
 
-This repository contains a demo project for integrating the **OTPless Headless SDK** into a mobile login form using React. The project includes helper files and components to streamline the implementation process.
+This repository contains a demo project for integrating the **OTPless Headless SDK** into a mobile login form using React. The project demonstrates two integration approaches:
+
+1. **NPM Package Integration** - Using the official `otpless-headless-js` package
+2. **Legacy Script Integration** - Direct script loading using helper functions
+
+The project includes helper files and components to streamline the implementation process for both approaches.
 
 ---
 
@@ -9,18 +14,23 @@ This repository contains a demo project for integrating the **OTPless Headless S
 ```
 src/
 ├── Components
-│   ├── AlertIcon.js
-│   ├── OTPInput.js
-│   └── PhoneIcon.js
+│   ├── AlertIcon.tsx
+│   ├── OTPInput.tsx
+│   ├── OTPlessUI.tsx
+│   ├── PhoneIcon.tsx
+│   └── Response.tsx
 ├── Containers
-│   ├── OTPLogin.css
-│   └── OTPLogin.jsx
+│   ├── OTPlogin.css
+│   ├── OTPlessPackage.tsx  # NPM package integration
+│   └── OTPlessLegacy.tsx   # Legacy script integration
 ├── Helpers
-│   ├── appendResponse.js
-│   └── otpless.js
+│   ├── appendResponse.ts
+│   ├── deviceDetection.ts
+│   └── otpless.ts
 ├── App.css
-├── App.js
-├── index.js
+├── App.tsx
+├── index.tsx
+├── .env.example
 ├── .gitignore
 ├── package.json
 └── README.md
@@ -28,8 +38,13 @@ src/
 
 ### 🔑 Key Files
 
-1. **`Helpers/otpless.js`**: Contains the core functions for initializing and interacting with the OTPless Headless SDK.
-2. **`Containers/OTPLogin.jsx`**: Contains the login form for users to enter their phone number and verify using the OTPless SDK.
+#### NPM Package Integration
+1. **`Containers/OTPlessPackage.tsx`**: Implementation using the official `otpless-headless-js` npm package.
+2. **`Components/OTPlessUI.tsx`**: UI components shared between both implementations.
+
+#### Legacy Script Integration
+1. **`Helpers/otpless.ts`**: Contains the core functions for initializing and interacting with the OTPless Headless SDK.
+2. **`Containers/OTPlessLegacy.tsx`**: Legacy implementation that uses direct script loading.
 
 ---
 
@@ -44,11 +59,27 @@ cd OTPless-Headless-SDK
 ### 2. Install Dependencies
 ```bash
 npm install
+# or
+yarn
 ```
 
-### 3. Start the Development Server
+### 3. Create Environment Configuration
+Create a `.env` file in the root directory based on `.env.example`:
+```bash
+cp .env.example .env
+```
+
+Edit the `.env` file to include your OTPless App ID:
+```bash
+REACT_APP_OTPLESS_APP_ID=YOUR_APP_ID
+REACT_APP_OTP_LENGTH=4
+```
+
+### 4. Start the Development Server
 ```bash
 npm start
+# or
+yarn start
 ```
 
 The project will run at `http://localhost:3000/` by default.
@@ -57,63 +88,132 @@ The project will run at `http://localhost:3000/` by default.
 
 ## 📄 Integration Guide
 
-### 🧩 OTPless SDK Helper Functions
+This project demonstrates two different approaches to integrate the OTPless SDK:
 
-The **`[Helpers/otpless.js](./src/Helpers/otpless.js)`** file contains two key functions:
+### 🧩 NPM Package Approach (Recommended)
+
+#### 1. Installation
+
+```bash
+npm install otpless-headless-js
+# or
+yarn add otpless-headless-js
+```
+
+#### 2. Import and Use the Hook
+
+The `OTPlessPackage.tsx` component demonstrates how to use the `useOTPless` hook:
+
+```typescript
+import { CHANNELS, useOTPless } from "otpless-headless-js";
+
+const YourComponent = () => {
+  const {
+    init,            // Initialize the SDK
+    initiate,        // Start OTP process
+    verify,          // Verify OTP
+    on,              // Subscribe to events
+    loading          // Loading state
+  } = useOTPless();
+  
+  // Initialize SDK with your App ID
+  useEffect(() => {
+    if (init) {
+      init(process.env.REACT_APP_OTPLESS_APP_ID || "YOUR_APP_ID");
+    }
+  }, [init]);
+  
+  // Example: Initiate OTP
+  const startOtpProcess = async () => {
+    const response = await initiate({
+      channel: CHANNELS.PHONE,
+      phone: "1234567890",
+      countryCode: "91"
+    });
+    // Handle response
+  };
+  
+  // Example: Event handling
+  const eventCallback = {
+    ONETAP: (event) => { /* Handle one-tap event */ },
+    OTP_AUTO_READ: (event) => { /* Handle auto-read event */ }
+  };
+  
+  useEffect(() => {
+    if (on) {
+      const unsubscribe = on(eventCallback);
+      return () => unsubscribe();
+    }
+  }, [on]);
+}
+```
+
+### 🔧 Legacy Script Integration
+
+The **`Helpers/otpless.ts`** file contains two key functions for the legacy approach:
 
 #### 1. `OTPlessSdk()`
 This function loads the OTPless Headless SDK script and initializes the `OTPlessSignin` object.
 
-```javascript
-export const OTPlessSdk = async () => new Promise(async (resolve) => {
-    if (document.getElementById('otpless-sdk') && OTPlessSignin) return resolve();
-    const appId = "YOUR_APP_ID"; // Replace with your App ID
+```typescript
+export const OTPlessSdk = async (): Promise<void> =>
+	new Promise<void>(async (resolve) => {
+		if (document.getElementById("otpless-sdk") && OTPlessSignin)
+			return resolve();
 
-    const script = document.createElement('script');
-    script.src = `https://otpless.com/v4.3/headless.js`;
-    script.id = "otpless-sdk";
-    script.setAttribute('data-appid', appId);
+		// Get App ID from environment variable or use a default
+		const appId = process.env.REACT_APP_OTPLESS_APP_ID || "YOUR_APP_ID";
 
-    script.onload = function () {
-        const OTPless = Reflect.get(window, "OTPless");
-        OTPlessSignin = new OTPless(callback);
-        resolve();
-    };
+		const script = document.createElement("script");
+		script.src = `https://otpless.com/v4.3/headless.js`;
+		script.id = "otpless-sdk";
+		script.setAttribute("data-appid", appId);
 
-    document.head.appendChild(script);
-});
+		script.onload = function () {
+			// Initialize OTPless SDK
+			resolve();
+		};
+
+		document.head.appendChild(script);
+	});
 ```
 
 #### 2. `hitOTPlessSdk(params)`
 This function triggers the required request type (e.g., login) using the initialized `OTPlessSignin` object.
 
-```javascript
-export const hitOTPlessSdk = async (params) => {
-    await OTPlessSdk();
+```typescript
+export const hitOTPlessSdk = async (
+	params: OTPlessRequestParams
+): Promise<OTPlessResponse> => {
+	await OTPlessSdk();
 
-    const { requestType, request } = params;
+	const { requestType, request } = params;
 
-    return await OTPlessSignin[requestType](request);
+	return await OTPlessSignin[requestType](request);
 };
 ```
 
-### 🔧 Usage in the Login Form
+### 🔄 Key Integration Process
 
-The `OTPLogin.jsx` component is a sample implementation of a mobile login form that uses the above helper functions to verify phone numbers via the OTPless SDK.
+Both approaches implement the same flow:
 
-Key steps in the login process:
+1. **Initialization**:
+   - NPM: Use the `init` method from the hook
+   - Legacy: Load the script via `OTPlessSdk()`
 
-- **Phone Number Submission**:
-  - Users enter their phone number.
-  - The app sends an OTP initiation request via `hitOTPlessSdk`.
-  - Upon success, the app transitions to the OTP verification step.
+2. **Phone Number Submission**:
+   - User enters their phone number
+   - App sends an OTP initiation request
+   - Upon success, transition to the OTP verification step
 
-- **OTP Verification**:
-  - Users enter the received OTP.
-  - The app sends an OTP verification request via `hitOTPlessSdk`.
-  - Upon successful verification, the user is logged in.
+3. **OTP Verification**:
+   - User enters the received OTP
+   - App sends an OTP verification request
+   - Upon successful verification, user is logged in
 
-Example snippet from `OTPLogin.jsx`:
+4. **Event Handling**:
+   - NPM: Use the `on` method to subscribe to events
+   - Legacy: Set up event listeners manually
 
 ```javascript
 const handlePhoneSubmit = async (e) => {
@@ -182,26 +282,43 @@ const handleOtpSubmit = async (e) => {
 ---
 
 ## ⚙️ Configuration
-Replace **`YOUR_APP_ID`** in the `OTPlessSdk()` function with your actual OTPless App ID.
 
-To configure the OTPless Headless SDK, you need to replace the placeholder YOUR_APP_ID in the OTPlessSdk() function with your actual App ID.
+### Environment Variables
 
-Obtaining Your OTPless App ID
+The application uses environment variables to store configuration settings. Create a `.env` file in the root directory with the following variables:
+
+```bash
+# .env file
+REACT_APP_OTPLESS_APP_ID=YOUR_APP_ID
+REACT_APP_OTP_LENGTH=4
+```
+
+A sample `.env.example` file is provided for reference.
+
+### Obtaining Your OTPless App ID
 
 If you do not have an App ID, follow these steps:
 
-1. Log in to the OTPless Dashboard. https://otpless.com/login
+1. Log in to the [OTPless Dashboard](https://otpless.com/login).
 
 2. Create a new app if you haven't already.
 
 3. Navigate to App Settings.
 
-4. Copy the App ID provided in the app settings and paste it in the appId field within the OTPlessSdk() function.
+4. Copy the App ID provided in the app settings and add it to your `.env` file:
 
-```javascript
-const appId = "YOUR_APP_ID";
+```bash
+REACT_APP_OTPLESS_APP_ID=YOUR_APP_ID_HERE
 ```
+
 This App ID is essential for connecting your app to the OTPless services.
+
+### Available Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|--------|
+| `REACT_APP_OTPLESS_APP_ID` | Your OTPless App ID | "YOUR_APP_ID" |
+| `REACT_APP_OTP_LENGTH` | Length of the OTP code | 4 |
 
 ---
 
@@ -221,6 +338,8 @@ Builds the app for production to the `build` folder.
 
 ## 🛠 Tools & Libraries Used
 - **React**: Frontend framework
+- **TypeScript**: Type-safe JavaScript
+- **otpless-headless-js**: NPM package for OTPless integration
 - **OTPless Headless SDK**: For phone number authentication
 
 ---
