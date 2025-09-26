@@ -1,15 +1,12 @@
-import { CHANNELS, OAUTH_CHANNELS, useOTPless } from "otpless-headless-js";
+import {
+	CHANNELS,
+	OAUTH_CHANNELS,
+	OTPlessResponse,
+	useOTPless,
+} from "otpless-headless-js";
 import React, { useEffect, useState } from "react";
 import OTPlessUI from "../Components/OTPlessUI";
 import { isAndroid } from "../Helpers/deviceDetection";
-import { EventCallback } from "../Helpers/otpless";
-
-interface InitiateResponse {
-	success: boolean;
-	response: {
-		errorMessage?: string;
-	};
-}
 
 const getEnvConfig = () => ({
 	appId: process.env.REACT_APP_OTPLESS_APP_ID || "YOUR_APP_ID",
@@ -48,12 +45,12 @@ const OTPlessTesting: React.FC = () => {
 				countryCode,
 			};
 
-			const initiate = (await OTPlessInitiate(request)) as InitiateResponse;
+			const initiate = await OTPlessInitiate(request);
 			appendResponse(initiate);
-			console.log({ initiate });
 
 			if (initiate.success) setStep("otp");
-			else setError(initiate.response.errorMessage || "Unknown error occurred");
+			else
+				setError(initiate.response?.errorMessage || "Unknown error occurred");
 		} catch (err) {
 			setError("Failed to send OTP. Please try again.");
 		}
@@ -71,9 +68,8 @@ const OTPlessTesting: React.FC = () => {
 				channelType: OAUTH_CHANNELS.TRUE_CALLER,
 			};
 
-			const initiate = (await OTPlessInitiate(request)) as InitiateResponse;
+			const initiate = await OTPlessInitiate(request);
 			appendResponse(initiate);
-			console.log({ initiate });
 		} catch (err) {
 			setError("Failed to send OTP. Please try again.");
 		}
@@ -96,7 +92,6 @@ const OTPlessTesting: React.FC = () => {
 
 			const verify = await OTPlessVerify(request);
 			appendResponse(verify);
-			console.log({ verify });
 		} catch (err) {
 			setError("Invalid OTP. Please try again.");
 		}
@@ -109,37 +104,36 @@ const OTPlessTesting: React.FC = () => {
 		setError("");
 	};
 
-	const appendResponse = (response: any) =>
+	const appendResponse = (response: OTPlessResponse) => {
+		console.log({ response });
 		setResponses((prev) => [...prev, response]);
+	};
 
-	const ONETAP = (e: EventCallback): void => {
+	const ONETAP = (e: OTPlessResponse): void => {
 		const { response } = e;
-		console.log({ response, token: response?.token });
+		console.log({ token: response?.token });
 		appendResponse(e);
 
 		// YOUR_LOGIC
 	};
 
-	const OTP_AUTO_READ = (e: EventCallback): void => {
-		const { response } = e;
-		const otp = response?.otp;
-		console.log({ otp });
+	const OTP_AUTO_READ = (e: OTPlessResponse): void => {
 		appendResponse(e);
 
+		const otp = e.response?.otp;
+		if (!otp) return;
+
 		// PREFILL OTP
+		setOtp(otp.split(""));
 	};
 
-	const FAILED = (e: EventCallback): void => {
-		const { response } = e;
-		console.log({ response });
+	const FAILED = (e: OTPlessResponse): void => {
 		appendResponse(e);
 
 		// YOUR_FALLBACK
 	};
 
-	const FALLBACK_TRIGGERED = (e: EventCallback): void => {
-		const { response } = e;
-		console.log({ response });
+	const FALLBACK_TRIGGERED = (e: OTPlessResponse): void => {
 		appendResponse(e);
 
 		// YOUR_UI_CHANGE
