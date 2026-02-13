@@ -22,6 +22,7 @@ const OTPlessLegacy: React.FC = () => {
 	const [otp, setOtp] = useState<string[]>(Array(otpLength).fill(""));
 	const [step, setStep] = useState<string>("phone");
 	const [phone, setPhone] = useState<string>("");
+	const [email, setEmail] = useState<string>("");
 	const [loading, setLoading] = useState<boolean>(false);
 	const [error, setError] = useState<string>("");
 	const countryCode = "91"; // Hardcoded country code
@@ -43,6 +44,37 @@ const OTPlessLegacy: React.FC = () => {
 				channel: "PHONE",
 				phone,
 				countryCode,
+			};
+
+			const initiate = (await hitOTPlessSdk({
+				requestType: "initiate",
+				request,
+			})) as OTPlessResponse;
+
+			appendResponse(initiate);
+			console.log({ initiate });
+
+			if (initiate.success) setStep("otp");
+			else setError(initiate.response.errorMessage || "Unknown error");
+		} catch (err) {
+			setError("Failed to send OTP. Please try again.");
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+
+		if (!email) return setError("Please enter your email number");
+
+		setError("");
+		setLoading(true);
+
+		try {
+			const request = {
+				channel: "EMAIL",
+				email,
 			};
 
 			const initiate = (await hitOTPlessSdk({
@@ -133,14 +165,17 @@ const OTPlessLegacy: React.FC = () => {
 		<OTPlessUI
 			step={step}
 			phone={phone}
+			email={email}
 			error={error}
 			otp={otp}
 			otpLength={otpLength}
 			loading={loading}
 			onPhoneSubmit={handlePhoneSubmit}
+			onEmailSubmit={handleEmailSubmit}
 			onOtpSubmit={handleOtpSubmit}
 			onPhoneChange={handlePhoneChange}
 			setPhone={setPhone}
+			setEmail={setEmail}
 			setOtp={setOtp}
 			onTruecallerInitiate={initiateTruecaller}
 			responses={responses}

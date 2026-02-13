@@ -1,5 +1,6 @@
 import {
 	CHANNELS,
+	InitiateRequest,
 	OAUTH_CHANNELS,
 	OTPlessResponse,
 	useOTPless,
@@ -19,6 +20,7 @@ const OTPlessTesting: React.FC = () => {
 	const [otp, setOtp] = useState<string[]>(Array(otpLength).fill(""));
 	const [step, setStep] = useState<string>("phone");
 	const [phone, setPhone] = useState<string>("");
+	const [email, setEmail] = useState<string>("");
 	const [error, setError] = useState<string>("");
 	const [responses, setResponses] = useState<any[]>([]);
 	const countryCode = "91"; // Hardcoded country code
@@ -30,30 +32,55 @@ const OTPlessTesting: React.FC = () => {
 		loading: OTPlessLoading,
 	} = useOTPless();
 
+	const initiateRequest = async (request: InitiateRequest) => {
+		try {
+			const initiate = await OTPlessInitiate(request);
+			appendResponse(initiate);
+
+			const step =
+				initiate.response?.authType === "EMAIL_LOGIN" ? "link" : "otp";
+
+			setStep(step);
+
+			if (!initiate.success)
+				setError(initiate.response?.errorMessage || "Unknown error occurred");
+		} catch (err) {
+			setError("Failed to send OTP. Please try again.");
+		}
+	};
+
 	const handlePhoneSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
+
 		console.log("handlePhoneSubmit");
 
 		if (!phone) return setError("Please enter your phone number");
 
 		setError("");
 
-		try {
-			const request = {
-				channel: CHANNELS.PHONE,
-				phone,
-				countryCode,
-			};
+		const request = {
+			channel: CHANNELS.PHONE,
+			phone,
+			countryCode,
+		};
 
-			const initiate = await OTPlessInitiate(request);
-			appendResponse(initiate);
+		initiateRequest(request);
+	};
 
-			if (initiate.success) setStep("otp");
-			else
-				setError(initiate.response?.errorMessage || "Unknown error occurred");
-		} catch (err) {
-			setError("Failed to send OTP. Please try again.");
-		}
+	const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		console.log("handleEmailSubmit");
+
+		if (!email) return setError("Please enter your email");
+
+		setError("");
+
+		const request = {
+			channel: CHANNELS.EMAIL,
+			email,
+		};
+
+		initiateRequest(request);
 	};
 
 	const initiateTruecaller = async (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -66,6 +93,22 @@ const OTPlessTesting: React.FC = () => {
 			const request = {
 				channel: CHANNELS.OAUTH,
 				channelType: OAUTH_CHANNELS.TRUE_CALLER,
+			};
+
+			const initiate = await OTPlessInitiate(request);
+			appendResponse(initiate);
+		} catch (err) {
+			setError("Failed to send OTP. Please try again.");
+		}
+	};
+
+	const initiateGoogle = async (e: React.MouseEvent<HTMLButtonElement>) => {
+		e.preventDefault();
+
+		try {
+			const request = {
+				channel: CHANNELS.OAUTH,
+				channelType: "GMAIL",
 			};
 
 			const initiate = await OTPlessInitiate(request);
@@ -114,6 +157,8 @@ const OTPlessTesting: React.FC = () => {
 		console.log({ token: response?.token });
 		appendResponse(e);
 
+		setStep("success");
+
 		// YOUR_LOGIC
 	};
 
@@ -157,17 +202,21 @@ const OTPlessTesting: React.FC = () => {
 		<OTPlessUI
 			step={step}
 			phone={phone}
+			email={email}
 			error={error}
 			otp={otp}
 			otpLength={otpLength}
 			responses={responses}
 			loading={OTPlessLoading}
 			onPhoneSubmit={handlePhoneSubmit}
+			onEmailSubmit={handleEmailSubmit}
 			onOtpSubmit={handleOtpSubmit}
 			onPhoneChange={handlePhoneChange}
+			setEmail={setEmail}
 			setPhone={setPhone}
 			setOtp={setOtp}
 			onTruecallerInitiate={initiateTruecaller}
+			onGoogleInitiate={initiateGoogle}
 		/>
 	);
 };
