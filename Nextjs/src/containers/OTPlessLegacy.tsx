@@ -1,7 +1,9 @@
+"use client";
+
 import React, { useEffect, useState } from "react";
-import OTPlessUI from "../Components/OTPlessUI";
-import { isAndroid } from "../Helpers/deviceDetection";
-import { hitOTPlessSdk, OTPlessSdk } from "../Helpers/otpless";
+import OTPlessUI from "@/components/OTPlessUI";
+import { isAndroid } from "@/helpers/deviceDetection";
+import { hitOTPlessSdk, OTPlessSdk } from "@/helpers/otpless";
 
 export interface OTPlessResponse {
 	success: boolean;
@@ -13,15 +15,16 @@ export interface OTPlessResponse {
 
 // Get configuration from environment variables
 const getEnvConfig = () => ({
-	otpLength: parseInt(process.env.REACT_APP_OTP_LENGTH || "4", 10),
+	otpLength: parseInt(process.env.NEXT_PUBLIC_OTP_LENGTH || "4", 10),
 });
 
 const OTPlessLegacy: React.FC = () => {
 	const config = getEnvConfig();
 	const otpLength = config.otpLength;
 	const [otp, setOtp] = useState<string[]>(Array(otpLength).fill(""));
-	const [step, setStep] = useState<string>("phone");
+	const [step, setStep] = useState<string>("auth");
 	const [phone, setPhone] = useState<string>("");
+	const [email, setEmail] = useState<string>("");
 	const [loading, setLoading] = useState<boolean>(false);
 	const [error, setError] = useState<string>("");
 	const countryCode = "91"; // Hardcoded country code
@@ -43,6 +46,37 @@ const OTPlessLegacy: React.FC = () => {
 				channel: "PHONE",
 				phone,
 				countryCode,
+			};
+
+			const initiate = (await hitOTPlessSdk({
+				requestType: "initiate",
+				request,
+			})) as OTPlessResponse;
+
+			appendResponse(initiate);
+			console.log({ initiate });
+
+			if (initiate.success) setStep("otp");
+			else setError(initiate.response.errorMessage || "Unknown error");
+		} catch (err) {
+			setError("Failed to send OTP. Please try again.");
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+
+		if (!email) return setError("Please enter your email");
+
+		setError("");
+		setLoading(true);
+
+		try {
+			const request = {
+				channel: "EMAIL",
+				email,
 			};
 
 			const initiate = (await hitOTPlessSdk({
@@ -90,7 +124,9 @@ const OTPlessLegacy: React.FC = () => {
 		}
 	};
 
-	const initiateTruecaller = async (e: React.MouseEvent<HTMLButtonElement>) => {
+	const initiateTruecaller = async (
+		e: React.MouseEvent<HTMLButtonElement>
+	) => {
 		e.preventDefault();
 
 		if (!isAndroid()) {
@@ -125,7 +161,7 @@ const OTPlessLegacy: React.FC = () => {
 	}, []);
 
 	const handlePhoneChange = (e: React.MouseEvent<HTMLButtonElement>) => {
-		setStep("phone");
+		setStep("auth");
 		setError("");
 	};
 
@@ -133,14 +169,17 @@ const OTPlessLegacy: React.FC = () => {
 		<OTPlessUI
 			step={step}
 			phone={phone}
+			email={email}
 			error={error}
 			otp={otp}
 			otpLength={otpLength}
 			loading={loading}
 			onPhoneSubmit={handlePhoneSubmit}
+			onEmailSubmit={handleEmailSubmit}
 			onOtpSubmit={handleOtpSubmit}
 			onPhoneChange={handlePhoneChange}
 			setPhone={setPhone}
+			setEmail={setEmail}
 			setOtp={setOtp}
 			onTruecallerInitiate={initiateTruecaller}
 			responses={responses}
