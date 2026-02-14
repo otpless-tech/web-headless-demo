@@ -1,3 +1,7 @@
+"use client";
+
+import OTPlessUI from "@/components/OTPlessUI";
+import { isAndroid } from "@/helpers/deviceDetection";
 import {
 	CHANNELS,
 	InitiateRequest,
@@ -6,19 +10,17 @@ import {
 	useOTPless,
 } from "otpless-headless-js";
 import React, { useEffect, useState } from "react";
-import OTPlessUI from "../Components/OTPlessUI";
-import { isAndroid } from "../Helpers/deviceDetection";
 
 const getEnvConfig = () => ({
-	appId: process.env.REACT_APP_OTPLESS_APP_ID || "YOUR_APP_ID",
-	otpLength: parseInt(process.env.REACT_APP_OTP_LENGTH || "4", 10),
+	appId: process.env.NEXT_PUBLIC_OTPLESS_APP_ID || "YOUR_APP_ID",
+	otpLength: parseInt(process.env.NEXT_PUBLIC_OTP_LENGTH || "4", 10),
 });
 
 const OTPlessTesting: React.FC = () => {
 	const config = getEnvConfig();
 	const otpLength = config.otpLength;
 	const [otp, setOtp] = useState<string[]>(Array(otpLength).fill(""));
-	const [step, setStep] = useState<string>("phone");
+	const [step, setStep] = useState<string>("auth");
 	const [phone, setPhone] = useState<string>("");
 	const [email, setEmail] = useState<string>("");
 	const [error, setError] = useState<string>("");
@@ -108,7 +110,7 @@ const OTPlessTesting: React.FC = () => {
 		try {
 			const request = {
 				channel: CHANNELS.OAUTH,
-				channelType: "GMAIL",
+				channelType: OAUTH_CHANNELS.GOOGLE,
 			};
 
 			const initiate = await OTPlessInitiate(request);
@@ -143,7 +145,7 @@ const OTPlessTesting: React.FC = () => {
 	const handlePhoneChange = (e: React.MouseEvent<HTMLButtonElement>) => {
 		e.preventDefault();
 		e.stopPropagation();
-		setStep("phone");
+		setStep("auth");
 		setError("");
 	};
 
@@ -196,6 +198,7 @@ const OTPlessTesting: React.FC = () => {
 		const off = on(callback);
 
 		return () => off();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [init, on]);
 
 	return (
