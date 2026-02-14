@@ -108,7 +108,7 @@ const OTPlessTesting: React.FC = () => {
 		try {
 			const request = {
 				channel: CHANNELS.OAUTH,
-				channelType: "GMAIL",
+				channelType: OAUTH_CHANNELS.GOOGLE,
 			};
 
 			const initiate = await OTPlessInitiate(request);

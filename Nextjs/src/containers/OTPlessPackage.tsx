@@ -1,5 +1,7 @@
 "use client";
 
+import OTPlessUI from "@/components/OTPlessUI";
+import { isAndroid } from "@/helpers/deviceDetection";
 import {
 	CHANNELS,
 	InitiateRequest,
@@ -8,8 +10,6 @@ import {
 	useOTPless,
 } from "otpless-headless-js";
 import React, { useEffect, useState } from "react";
-import OTPlessUI from "@/components/OTPlessUI";
-import { isAndroid } from "@/helpers/deviceDetection";
 
 const getEnvConfig = () => ({
 	appId: process.env.NEXT_PUBLIC_OTPLESS_APP_ID || "YOUR_APP_ID",
@@ -45,9 +45,7 @@ const OTPlessTesting: React.FC = () => {
 			setStep(step);
 
 			if (!initiate.success)
-				setError(
-					initiate.response?.errorMessage || "Unknown error occurred"
-				);
+				setError(initiate.response?.errorMessage || "Unknown error occurred");
 		} catch (err) {
 			setError("Failed to send OTP. Please try again.");
 		}
@@ -87,9 +85,7 @@ const OTPlessTesting: React.FC = () => {
 		initiateRequest(request);
 	};
 
-	const initiateTruecaller = async (
-		e: React.MouseEvent<HTMLButtonElement>
-	) => {
+	const initiateTruecaller = async (e: React.MouseEvent<HTMLButtonElement>) => {
 		e.preventDefault();
 
 		if (!isAndroid())
@@ -114,7 +110,7 @@ const OTPlessTesting: React.FC = () => {
 		try {
 			const request = {
 				channel: CHANNELS.OAUTH,
-				channelType: "GMAIL",
+				channelType: OAUTH_CHANNELS.GOOGLE,
 			};
 
 			const initiate = await OTPlessInitiate(request);
