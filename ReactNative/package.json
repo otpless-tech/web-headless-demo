@@ -1,0 +1,22 @@
+{
+  "name": "otpless-headless-demo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "start": "react-native start"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-native": "0.76.5",
+    "otpless-headless-rn": "^1.0.0",
+    "@react-native-clipboard/clipboard": "^1.14.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@tsconfig/react-native": "^3.0.3",
+    "@types/react": "^18.3.12",
+    "typescript": "5.0.4"
+  }
+}
