@@ -64,6 +64,9 @@ const OTPlessTesting: React.FC = () => {
 			channel: CHANNELS.PHONE,
 			phone,
 			countryCode,
+			// You can pass your custom data in metaData — it will be returned as-is in the onTap response.
+			// You can also pass your tid (template ID) here inside metaData.
+			metaData: { source: "nextjs-demo" },
 		};
 
 		initiateRequest(request);
