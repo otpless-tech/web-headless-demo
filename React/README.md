@@ -1,355 +1,471 @@
-# OTPless Headless SDK Integration Demo
+# OTPless Headless SDK — React Demo
 
-This repository contains a demo project for integrating the **OTPless Headless SDK** into a mobile login form using React. The project demonstrates two integration approaches:
-
-1. **NPM Package Integration** - Using the official `otpless-headless-js` package
-2. **Legacy Script Integration** - Direct script loading using helper functions
-
-The project includes helper files and components to streamline the implementation process for both approaches.
+A React 18 + TypeScript demo of [OTPless](https://otpless.com) passwordless authentication. Covers two integration modes (NPM package hook vs. legacy CDN script) and three auth channels (Phone SMS, Email, OAuth).
 
 ---
 
-## 📂 Project Structure
+## Contents
 
-```
-src/
-├── Components
-│   ├── AlertIcon.tsx
-│   ├── OTPInput.tsx
-│   ├── OTPlessUI.tsx
-│   ├── PhoneIcon.tsx
-│   └── Response.tsx
-├── Containers
-│   ├── OTPlogin.css
-│   ├── OTPlessPackage.tsx  # NPM package integration
-│   └── OTPlessLegacy.tsx   # Legacy script integration
-├── Helpers
-│   ├── appendResponse.ts
-│   ├── deviceDetection.ts
-│   └── otpless.ts
-├── App.css
-├── App.tsx
-├── index.tsx
-├── .env.example
-├── .gitignore
-├── package.json
-└── README.md
-```
-
-### 🔑 Key Files
-
-#### NPM Package Integration
-1. **`Containers/OTPlessPackage.tsx`**: Implementation using the official `otpless-headless-js` npm package.
-2. **`Components/OTPlessUI.tsx`**: UI components shared between both implementations.
-
-#### Legacy Script Integration
-1. **`Helpers/otpless.ts`**: Contains the core functions for initializing and interacting with the OTPless Headless SDK.
-2. **`Containers/OTPlessLegacy.tsx`**: Legacy implementation that uses direct script loading.
+- [Prerequisites](#prerequisites)
+- [Setup](#setup)
+- [Project Structure](#project-structure)
+- [Integration Mode 1 — NPM Package (Recommended)](#integration-mode-1--npm-package-recommended)
+- [Integration Mode 2 — Legacy CDN Script](#integration-mode-2--legacy-cdn-script)
+- [Auth Channels](#auth-channels)
+- [Event Reference](#event-reference)
+- [Response Schemas](#response-schemas)
+- [Environment Variables](#environment-variables)
+- [Available Scripts](#available-scripts)
+- [Production Checklist](#production-checklist)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
-## 🚀 Getting Started
+## Prerequisites
 
-### 1. Clone the Repository
-```bash
-git clone git@github.com:Mickey-OTPless/headless.git
-cd OTPless-Headless-SDK
-```
+- Node.js 16 or later
+- An **OTPless App ID** — [get one free](https://otpless.com/login)
 
-### 2. Install Dependencies
+---
+
+## Setup
+
 ```bash
+# 1. Install dependencies
+cd React
 npm install
-# or
-yarn
+
+# 2. Set your App ID
+#    .env is already present — just replace the placeholder value
+nano .env
 ```
 
-### 3. Create Environment Configuration
-Create a `.env` file in the root directory based on `.env.example`:
-```bash
-cp .env.example .env
+`.env`:
+
+```env
+REACT_APP_OTPLESS_APP_ID=YOUR_APP_ID_HERE
+REACT_APP_OTP_LENGTH=6
 ```
 
-Edit the `.env` file to include your OTPless App ID:
 ```bash
-REACT_APP_OTPLESS_APP_ID=YOUR_APP_ID
-REACT_APP_OTP_LENGTH=4
-```
-
-### 4. Start the Development Server
-```bash
+# 3. Start the dev server
 npm start
-# or
-yarn start
 ```
 
-The project will run at `http://localhost:3000/` by default.
+Open [http://localhost:3000](http://localhost:3000). The home screen lets you choose between **Package** and **Legacy** integration modes.
+
+> The app ships with a fully functional UI, response log panel, and error display. The only thing you need is your App ID.
 
 ---
 
-## 📄 Integration Guide
+## Project Structure
 
-This project demonstrates two different approaches to integrate the OTPless SDK:
+```
+React/
+├── src/
+│   ├── App.tsx                        # Root — mode selector (Package | Legacy)
+│   ├── index.tsx                      # React DOM entry
+│   │
+│   ├── Containers/
+│   │   ├── OTPlessPackage.tsx         # ★ NPM hook integration
+│   │   └── OTPlessLegacy.tsx          # Legacy CDN script integration
+│   │
+│   ├── Components/
+│   │   ├── OTPlessUI/                 # Full auth UI (tabs, steps, success)
+│   │   │   ├── index.tsx              #   UI orchestrator
+│   │   │   ├── Tabs.tsx               #   Phone / Email / Social tabs
+│   │   │   ├── AuthStep.tsx           #   Login form
+│   │   │   ├── OTPStep.tsx            #   OTP entry form
+│   │   │   ├── LinkStep.tsx           #   Magic-link waiting state
+│   │   │   └── SuccessStep.tsx        #   Token display
+│   │   ├── OTPInput.tsx               # Auto-advance digit input
+│   │   ├── Response.tsx               # Collapsible JSON response viewer
+│   │   ├── PhoneIcon.tsx
+│   │   └── AlertIcon.tsx
+│   │
+│   └── Helpers/
+│       ├── otpless.ts                 # Legacy SDK loader + request dispatcher
+│       ├── appendResponse.ts          # Response DOM logger
+│       ├── deviceDetection.ts         # Android detection (Truecaller guard)
+│       └── getStepsText.ts            # Step label strings
+│
+├── .env                               # App ID + OTP length (edit this)
+├── .env.example                       # Reference copy
+└── package.json
+```
 
-### 🧩 NPM Package Approach (Recommended)
+---
 
-#### 1. Installation
+## Integration Mode 1 — NPM Package (Recommended)
+
+File: `src/Containers/OTPlessPackage.tsx`
+
+This is the preferred approach. The `useOTPless` hook from `otpless-headless-js` manages the SDK lifecycle for you.
+
+### Install
 
 ```bash
 npm install otpless-headless-js
-# or
-yarn add otpless-headless-js
 ```
 
-#### 2. Import and Use the Hook
+### 1. Initialize the SDK
 
-The `OTPlessPackage.tsx` component demonstrates how to use the `useOTPless` hook:
+```tsx
+import { useOTPless } from "otpless-headless-js";
+import { useEffect } from "react";
 
-```typescript
-import { CHANNELS, useOTPless } from "otpless-headless-js";
+function AuthComponent() {
+  const { init, initiate, verify, on, loading } = useOTPless();
 
-const YourComponent = () => {
-  const {
-    init,            // Initialize the SDK
-    initiate,        // Start OTP process
-    verify,          // Verify OTP
-    on,              // Subscribe to events
-    loading          // Loading state
-  } = useOTPless();
-  
-  // Initialize SDK with your App ID
   useEffect(() => {
-    if (init) {
-      init(process.env.REACT_APP_OTPLESS_APP_ID || "YOUR_APP_ID");
-    }
-  }, [init]);
-  
-  // Example: Initiate OTP
-  const startOtpProcess = async () => {
-    const response = await initiate({
-      channel: CHANNELS.PHONE,
-      phone: "1234567890",
-      countryCode: "91"
+    if (!init || !on) return;
+
+    // Initialize with your App ID
+    init(process.env.REACT_APP_OTPLESS_APP_ID || "YOUR_APP_ID");
+
+    // Subscribe to async events (ONETAP, OTP_AUTO_READ, FAILED, etc.)
+    const off = on({
+      ONETAP: handleSuccess,
+      OTP_AUTO_READ: handleAutoRead,
+      FAILED: handleFailed,
+      FALLBACK_TRIGGERED: handleFallback,
     });
-    // Handle response
-  };
-  
-  // Example: Event handling
-  const eventCallback = {
-    ONETAP: (event) => { /* Handle one-tap event */ },
-    OTP_AUTO_READ: (event) => { /* Handle auto-read event */ }
-  };
-  
-  useEffect(() => {
-    if (on) {
-      const unsubscribe = on(eventCallback);
-      return () => unsubscribe();
-    }
-  }, [on]);
+
+    return () => off(); // unsubscribe on unmount
+  }, [init, on]);
 }
 ```
 
-### 🔧 Legacy Script Integration
+### 2. Initiate Phone OTP
 
-The **`Helpers/otpless.ts`** file contains two key functions for the legacy approach:
+```tsx
+import { CHANNELS } from "otpless-headless-js";
 
-#### 1. `OTPlessSdk()`
-This function loads the OTPless Headless SDK script and initializes the `OTPlessSignin` object.
+const handlePhoneSubmit = async () => {
+  const response = await initiate({
+    channel: CHANNELS.PHONE,
+    phone: "9876543210",
+    countryCode: "91",
 
-```typescript
+    // Optional: pass through custom data; returned as-is in ONETAP response
+    metaData: { source: "my-app", plan: "pro" },
+  });
+
+  if (response.success) {
+    setStep("otp"); // show OTP input screen
+  } else {
+    setError(response.response?.errorMessage ?? "Failed to send OTP");
+  }
+};
+```
+
+### 3. Initiate Email OTP / Magic Link
+
+```tsx
+const handleEmailSubmit = async () => {
+  const response = await initiate({
+    channel: CHANNELS.EMAIL,
+    email: "user@example.com",
+  });
+
+  if (response.success) {
+    // authType "EMAIL_LOGIN" means a magic link was sent; no OTP input needed
+    const nextStep = response.response?.authType === "EMAIL_LOGIN" ? "link" : "otp";
+    setStep(nextStep);
+  }
+};
+```
+
+### 4. Verify OTP
+
+```tsx
+const handleOtpSubmit = async () => {
+  const response = await verify({
+    channel: CHANNELS.PHONE,
+    phone: "9876543210",
+    countryCode: "91",
+    otp: "123456",
+  });
+
+  // On success the ONETAP event fires — handle it in the event callback below
+  if (!response.success) {
+    setError(response.response?.errorMessage ?? "Invalid OTP");
+  }
+};
+```
+
+### 5. Handle Events
+
+Events arrive asynchronously via the `on()` subscription. This is where you store the session and navigate.
+
+```tsx
+const handleSuccess = (e: OTPlessResponse) => {
+  const { token, idToken, userId } = e.response ?? {};
+
+  // Store the session — use token for API calls, idToken for identity claims
+  localStorage.setItem("otpless_token", token ?? "");
+
+  // Redirect to your app
+  window.location.href = "/dashboard";
+};
+
+const handleAutoRead = (e: OTPlessResponse) => {
+  // Android auto-detected the OTP from the incoming SMS
+  const otp = e.response?.otp;
+  if (otp) setOtp(otp.split(""));
+};
+
+const handleFailed = (e: OTPlessResponse) => {
+  setError(e.response?.errorMessage ?? "Authentication failed");
+  setStep("phone"); // reset to start
+};
+
+const handleFallback = (e: OTPlessResponse) => {
+  // SDK switched delivery channel (e.g. SMS → voice OTP)
+  // Update your UI copy if you surface delivery method to the user
+};
+```
+
+---
+
+## Integration Mode 2 — Legacy CDN Script
+
+File: `src/Containers/OTPlessLegacy.tsx`  
+Helper: `src/Helpers/otpless.ts`
+
+Use this if you cannot use npm packages (e.g. script-only environments).
+
+### How it works
+
+`OTPlessSdk()` dynamically injects the SDK script into `<head>` and instantiates a global `OTPlessSignin` object with a callback function:
+
+```ts
+// src/Helpers/otpless.ts
 export const OTPlessSdk = async (): Promise<void> =>
-	new Promise<void>(async (resolve) => {
-		if (document.getElementById("otpless-sdk") && OTPlessSignin)
-			return resolve();
+  new Promise((resolve) => {
+    if (document.getElementById("otpless-sdk") && OTPlessSignin) return resolve();
 
-		// Get App ID from environment variable or use a default
-		const appId = process.env.REACT_APP_OTPLESS_APP_ID || "YOUR_APP_ID";
-
-		const script = document.createElement("script");
-		script.src = `https://otpless.com/v4.3/headless.js`;
-		script.id = "otpless-sdk";
-		script.setAttribute("data-appid", appId);
-
-		script.onload = function () {
-			// Initialize OTPless SDK
-			resolve();
-		};
-
-		document.head.appendChild(script);
-	});
+    const script = document.createElement("script");
+    script.src = "https://otpless.com/v4.3/headless.js";
+    script.id = "otpless-sdk";
+    script.setAttribute("data-appid", process.env.REACT_APP_OTPLESS_APP_ID || "YOUR_APP_ID");
+    script.onload = () => { /* instantiate OTPlessSignin */ resolve(); };
+    document.head.appendChild(script);
+  });
 ```
 
-#### 2. `hitOTPlessSdk(params)`
-This function triggers the required request type (e.g., login) using the initialized `OTPlessSignin` object.
+### Dispatch requests
 
-```typescript
-export const hitOTPlessSdk = async (
-	params: OTPlessRequestParams
-): Promise<OTPlessResponse> => {
-	await OTPlessSdk();
+```ts
+// Initiate Phone OTP
+const res = await hitOTPlessSdk({
+  requestType: "initiate",
+  request: { channel: "PHONE", phone: "9876543210", countryCode: "91" },
+});
 
-	const { requestType, request } = params;
-
-	return await OTPlessSignin[requestType](request);
-};
+// Verify OTP
+const res = await hitOTPlessSdk({
+  requestType: "verify",
+  request: { channel: "PHONE", phone: "9876543210", countryCode: "91", otp: "123456" },
+});
 ```
 
-### 🔄 Key Integration Process
+### Handle async events
 
-Both approaches implement the same flow:
+The legacy approach receives OAuth/auto-read events through the callback passed to the `OTPless` constructor. Add your logic inside `Helpers/otpless.ts`:
 
-1. **Initialization**:
-   - NPM: Use the `init` method from the hook
-   - Legacy: Load the script via `OTPlessSdk()`
-
-2. **Phone Number Submission**:
-   - User enters their phone number
-   - App sends an OTP initiation request
-   - Upon success, transition to the OTP verification step
-
-3. **OTP Verification**:
-   - User enters the received OTP
-   - App sends an OTP verification request
-   - Upon successful verification, user is logged in
-
-4. **Event Handling**:
-   - NPM: Use the `on` method to subscribe to events
-   - Legacy: Set up event listeners manually
-
-```javascript
-const handlePhoneSubmit = async (e) => {
-
-    e.preventDefault();
-    if (!phone) return setError("Please enter your phone number");
-
-    setError('');
-    setLoading(true);
-
-    try {
-        const request = {
-            channel: 'PHONE',
-            phone,
-            countryCode,
-        };
-
-        const initiate = await hitOTPlessSdk({
-            requestType: "initiate",
-            request
-        });
-
-        if (initiate.success) setStep('otp');
-        else setError(initiate.response.errorMessage);
-
-    } catch (err) {
-        setError('Failed to send OTP. Please try again.');
-    } finally {
-        setLoading(false);
-    }
-};
-
-const handleOtpSubmit = async (e) => {
-
-    e.preventDefault();
-    if (!otp.join("")) return setError("Please enter OTP")
-
-    setError('');
-    setLoading(true);
-
-    try {
-        const verify = await hitOTPlessSdk({
-            requestType: "verify",
-            request: {
-                channel: 'PHONE',
-                phone,
-                otp: otp.join(""),
-                countryCode
-            }
-        })
-
-        appendResponse(verify)
-
-        console.log({ verify })
-
-        // YOUR_ACTIONS
-
-    } catch (err) {
-        setError('Invalid OTP. Please try again.');
-    } finally {
-        setLoading(false);
-    }
+```ts
+const ONETAP = (): void => {
+  const { response } = e;
+  // Store session and redirect
+  localStorage.setItem("otpless_token", response?.token ?? "");
+  window.location.href = "/dashboard";
 };
 ```
 
 ---
 
-## ⚙️ Configuration
+## Auth Channels
 
-### Environment Variables
+### Phone (SMS OTP)
 
-The application uses environment variables to store configuration settings. Create a `.env` file in the root directory with the following variables:
+```ts
+await initiate({ channel: CHANNELS.PHONE, phone: "9876543210", countryCode: "91" });
+await verify({ channel: CHANNELS.PHONE, phone: "9876543210", countryCode: "91", otp: "123456" });
+```
+
+### Email (Magic Link or OTP)
+
+```ts
+await initiate({ channel: CHANNELS.EMAIL, email: "user@example.com" });
+// If authType === "EMAIL_LOGIN" → magic link sent, no verify() call needed
+// If authType === "OTP"        → call verify() with the emailed code
+```
+
+### Google OAuth
+
+```ts
+import { OAUTH_CHANNELS } from "otpless-headless-js";
+
+await initiate({ channel: CHANNELS.OAUTH, channelType: OAUTH_CHANNELS.GOOGLE });
+// Redirects to Google; ONETAP fires on return
+```
+
+### Truecaller (Android only)
+
+```ts
+if (!isAndroid()) return; // guard — Truecaller is Android-only
+
+await initiate({ channel: CHANNELS.OAUTH, channelType: OAUTH_CHANNELS.TRUE_CALLER });
+// Opens Truecaller app; ONETAP fires on approval
+```
+
+### Country Codes
+
+The demo defaults to India (`+91`). To support multiple countries, add a country selector and pass the user's choice:
+
+```ts
+await initiate({ channel: CHANNELS.PHONE, phone: "2025551234", countryCode: "1" }); // US
+```
+
+Common codes:
+
+| Country | Code |
+|---|---|
+| India | `91` |
+| United States | `1` |
+| United Kingdom | `44` |
+| UAE | `971` |
+| Singapore | `65` |
+
+---
+
+## Event Reference
+
+Both integration modes emit the same events.
+
+| Event | `statusCode` | When it fires |
+|---|---|---|
+| `SDK_READY` | — | SDK loaded and initialized |
+| `INITIATE` | `200` / `4xx` | OTP sent (or failed to send) |
+| `OTP_AUTO_READ` | — | Android auto-detected incoming SMS OTP |
+| `VERIFY` | `200` / `4xx` | OTP verification attempted |
+| `ONETAP` | `200` | Authentication succeeded |
+| `DELIVERY_STATUS` | — | SMS delivery status update |
+| `FALLBACK_TRIGGERED` | — | SDK retried with a different delivery channel |
+| `FAILED` | — | Unrecoverable error in the auth flow |
+
+---
+
+## Response Schemas
+
+### ONETAP (success)
+
+```jsonc
+{
+  "responseType": "ONETAP",
+  "statusCode": 200,
+  "response": {
+    "token":   "<jwt>",   // attach to Authorization header on API calls
+    "idToken": "<jwt>",   // decode to get sub, phone_number, email, etc.
+    "userId":  "<uuid>"   // stable OTPless user identifier
+  }
+}
+```
+
+### INITIATE
+
+```jsonc
+// Success
+{ "responseType": "INITIATE", "statusCode": 200, "response": { "authType": "OTP" } }
+
+// authType values:
+// "OTP"        — show 6-digit code input
+// "MAGICLINK"  — show "check your email" screen
+// "OAUTH"      — OAuth flow started
+
+// Failure
+{ "responseType": "INITIATE", "statusCode": 400, "response": { "errorMessage": "Invalid phone number" } }
+```
+
+### OTP_AUTO_READ
+
+```jsonc
+{ "responseType": "OTP_AUTO_READ", "response": { "otp": "123456" } }
+```
+
+### FAILED
+
+```jsonc
+{ "responseType": "FAILED", "response": { "errorMessage": "Session expired" } }
+```
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description | Default |
+|---|---|---|---|
+| `REACT_APP_OTPLESS_APP_ID` | **Yes** | Your OTPless App ID | `YOUR_APP_ID` |
+| `REACT_APP_OTP_LENGTH` | No | Number of OTP digits | `6` |
+
+Create `.env` by copying the example:
 
 ```bash
-# .env file
-REACT_APP_OTPLESS_APP_ID=YOUR_APP_ID
-REACT_APP_OTP_LENGTH=4
+cp .env.example .env
+# then edit .env and set REACT_APP_OTPLESS_APP_ID
 ```
 
-A sample `.env.example` file is provided for reference.
+> CRA injects env vars at **build time**. Changing `.env` requires restarting the dev server (`npm start`).
 
-### Obtaining Your OTPless App ID
+---
 
-If you do not have an App ID, follow these steps:
+## Available Scripts
 
-1. Log in to the [OTPless Dashboard](https://otpless.com/login).
+| Command | Description |
+|---|---|
+| `npm start` | Dev server at [http://localhost:3000](http://localhost:3000) |
+| `npm run build` | Production build in `build/` |
+| `npm test` | Run test suite |
 
-2. Create a new app if you haven't already.
+---
 
-3. Navigate to App Settings.
+## Production Checklist
 
-4. Copy the App ID provided in the app settings and add it to your `.env` file:
+Before shipping your integration:
 
+- [ ] Replace `YOUR_APP_ID` with your real App ID from the OTPless Dashboard
+- [ ] Remove `.env` from git (add to `.gitignore` if not already there)
+- [ ] Implement the `ONETAP` handler: store `token` securely and redirect the user
+- [ ] Validate `token` server-side before granting access: `GET https://headless-auth.otpless.com/v1/user/session/validate`
+- [ ] Implement the `FAILED` handler: surface `errorMessage` to the user and allow retry
+- [ ] Replace the hardcoded `countryCode: "91"` with a country selector if you serve international users
+- [ ] Remove `console.log` statements from event handlers
+- [ ] Test on Android to verify SMS auto-read works
+- [ ] Test Truecaller flow on a physical Android device
+
+---
+
+## Troubleshooting
+
+**OTP not received**
+- Confirm `REACT_APP_OTPLESS_APP_ID` in `.env` matches your Dashboard App ID exactly
+- Restart the dev server after editing `.env`
+- Check the response log panel on screen — `INITIATE` with `statusCode 4xx` indicates a config issue
+
+**`useOTPless` returns undefined methods**
+- Ensure `init()` is called inside a `useEffect` that depends on `[init, on]`
+- `init` and `on` are `undefined` on the first render; the effect re-runs when they become available
+
+**Google OAuth not redirecting**
+- Configure the allowed redirect URI in your OTPless Dashboard App Settings
+- For localhost development, add `http://localhost:3000` as an allowed origin
+
+**Truecaller button appears but does nothing on desktop**
+- Expected — Truecaller requires the Truecaller app installed on an Android device
+- The `isAndroid()` guard in the demo catches this and shows an error
+
+**Build fails with TypeScript errors**
 ```bash
-REACT_APP_OTPLESS_APP_ID=YOUR_APP_ID_HERE
+npm install --save-dev typescript@4.9.5
 ```
-
-This App ID is essential for connecting your app to the OTPless services.
-
-### Available Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|--------|
-| `REACT_APP_OTPLESS_APP_ID` | Your OTPless App ID | "YOUR_APP_ID" |
-| `REACT_APP_OTP_LENGTH` | Length of the OTP code | 4 |
-
----
-
-## 📚 Available Scripts
-In the project directory, you can run:
-
-### `npm start`
-Runs the app in the development mode.
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
-
-The page will reload if you make edits.
-
-### `npm run build`
-Builds the app for production to the `build` folder.
-
----
-
-## 🛠 Tools & Libraries Used
-- **React**: Frontend framework
-- **TypeScript**: Type-safe JavaScript
-- **otpless-headless-js**: NPM package for OTPless integration
-- **OTPless Headless SDK**: For phone number authentication
-
----
-
-## 📞 Contact
-For any issues or questions, feel free to reach out to the OTPless support team or create an issue in this repository.
-
----
-
-## 📝 License
-This project is licensed under the MIT License. See the `LICENSE` file for details.
-
-# web-headless-demo

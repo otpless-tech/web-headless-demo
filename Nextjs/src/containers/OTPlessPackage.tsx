@@ -159,12 +159,20 @@ const OTPlessTesting: React.FC = () => {
 
 	const ONETAP = (e: OTPlessResponse): void => {
 		const { response } = e;
-		console.log({ token: response?.token });
 		appendResponse(e);
 
 		setStep("success");
 
-		// YOUR_LOGIC
+		// ── Session established ──────────────────────────────────────────
+		// response.token    → short-lived JWT; attach to your API requests
+		// response.idToken  → identity claims (sub, phone, email, etc.)
+		// response.userId   → stable OTPless user ID
+		//
+		// Typical next steps:
+		//   localStorage.setItem('otpless_token', response?.token ?? '');
+		//   router.push('/dashboard');
+		// ────────────────────────────────────────────────────────────────
+		console.log({ token: response?.token, idToken: response?.idToken, userId: response?.userId });
 	};
 
 	const OTP_AUTO_READ = (e: OTPlessResponse): void => {
@@ -173,20 +181,32 @@ const OTPlessTesting: React.FC = () => {
 		const otp = e.response?.otp;
 		if (!otp) return;
 
-		// PREFILL OTP
+		// OTP was auto-read from the incoming SMS — prefill the input fields
 		setOtp(otp.split(""));
 	};
 
 	const FAILED = (e: OTPlessResponse): void => {
 		appendResponse(e);
 
-		// YOUR_FALLBACK
+		// ── Auth flow failed ─────────────────────────────────────────────
+		// e.response.errorMessage → human-readable failure reason
+		//
+		// Typical next steps:
+		//   setError(e.response?.errorMessage ?? 'Authentication failed');
+		//   setStep('auth'); // reset to the start of the flow
+		// ────────────────────────────────────────────────────────────────
 	};
 
 	const FALLBACK_TRIGGERED = (e: OTPlessResponse): void => {
 		appendResponse(e);
 
-		// YOUR_UI_CHANGE
+		// ── SDK switched to a fallback channel ───────────────────────────
+		// The SDK automatically retried with an alternative delivery method
+		// (e.g. SMS OTP → voice OTP). Update your UI copy if needed.
+		//
+		// Example:
+		//   setDeliveryHint('OTP sent via voice call instead');
+		// ────────────────────────────────────────────────────────────────
 	};
 
 	const callback = { ONETAP, OTP_AUTO_READ, FAILED, FALLBACK_TRIGGERED };

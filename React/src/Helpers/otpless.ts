@@ -43,27 +43,42 @@ const callback = (e: EventCallback): void => {
 
 	const ONETAP = (): void => {
 		const { response } = e;
-		console.log({ response, token: response?.token });
-		// YOUR_LOGIC
+		// ── Session established ──────────────────────────────────────────
+		// response.token    → short-lived JWT; attach to your API requests
+		// response.idToken  → identity claims (sub, phone, email, etc.)
+		// response.userId   → stable OTPless user ID
+		//
+		// Example:
+		//   localStorage.setItem('otpless_token', response?.token ?? '');
+		//   window.location.href = '/dashboard';
+		// ────────────────────────────────────────────────────────────────
+		console.log({ token: response?.token, idToken: response?.idToken, userId: response?.userId });
 	};
 
 	const OTP_AUTO_READ = (): void => {
 		const { response } = e;
 		const otp = response?.otp;
-		console.log({ otp });
-		// PREFILL OTP
+		// OTP auto-detected from SMS — fill the OTP input in your UI
+		console.log({ autoReadOtp: otp });
 	};
 
 	const FAILED = (): void => {
 		const { response } = e;
-		console.log({ response });
-		// YOUR_FALLBACK
+		// ── Auth flow failed ─────────────────────────────────────────────
+		// response.errorMessage → human-readable failure reason
+		//
+		// Example:
+		//   showErrorToUser(response?.errorMessage ?? 'Authentication failed');
+		// ────────────────────────────────────────────────────────────────
+		console.log({ error: response?.errorMessage });
 	};
 
 	const FALLBACK_TRIGGERED = (): void => {
 		const { response } = e;
-		console.log({ response });
-		// YOUR_UI_CHANGE
+		// ── SDK switched to a fallback channel ───────────────────────────
+		// Update your UI copy to reflect the new delivery method.
+		// ────────────────────────────────────────────────────────────────
+		console.log({ fallback: response });
 	};
 
 	const EVENTS_MAP: { [key: string]: () => void } = {
